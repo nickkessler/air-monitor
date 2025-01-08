@@ -107,7 +107,8 @@ type Props = {
 };
 
 export async function GET(request: NextRequest, props: Props): Promise<NextResponse> {
-  const ip = request.ip || 'unknown';
+  const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+
   const { sensorId } = await props.params;
 
   // Check rate limit
