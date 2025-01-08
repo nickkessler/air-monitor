@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Define types for our data structures
 interface RateLimitEntry {
@@ -77,14 +76,7 @@ function getCachedData(sensorId: string): PurpleAirData | null {
 }
 
 function setCachedData(sensorId: string, data: PurpleAirData): void {
-  cache.set(sensorId, {
-    data,
-    timestamp: Date.now(),
-  });
-}
-
-// Clean up expired items periodically
-setInterval(() => {
+  // Clean up old entries before setting new ones
   const now = Date.now();
 
   // Clean up rate limit entries
@@ -95,17 +87,21 @@ setInterval(() => {
   }
 
   // Clean up cache entries
-  for (const [sensorId, data] of cache.entries()) {
-    if (now - data.timestamp > CACHE_DURATION) {
-      cache.delete(sensorId);
+  for (const [key, entry] of cache.entries()) {
+    if (now - entry.timestamp > CACHE_DURATION) {
+      cache.delete(key);
     }
   }
-}, 300_000); // Run cleanup every 5 minutes
 
-export async function GET(request: Request, { params }: { params: { sensorId: string } }) {
-  // Get headers and params asynchronously
-  const headersList = await headers();
-  const ip = headersList.get('x-forwarded-for') || 'unknown';
+  // Set new cache entry
+  cache.set(sensorId, {
+    data,
+    timestamp: now,
+  });
+}
+
+export async function GET(request: NextRequest, { params }: { params: { sensorId: string } }) {
+  const ip = request.ip || 'unknown';
   const { sensorId } = params;
 
   // Check rate limit
