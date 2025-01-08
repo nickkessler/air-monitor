@@ -1,11 +1,32 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 
+// Define types for our data structures
+interface RateLimitEntry {
+  count: number;
+  timestamp: number;
+}
+
+interface CacheEntry {
+  data: PurpleAirData;
+  timestamp: number;
+}
+
+interface PurpleAirData {
+  sensor: {
+    stats: {
+      'pm2.5_10minute': number;
+    };
+    temperature: number;
+    humidity: number;
+  };
+}
+
 // In-memory storage for rate limiting
-const rateLimit = new Map<string, { count: number; timestamp: number }>();
+const rateLimit = new Map<string, RateLimitEntry>();
 
 // Cache storage
-const cache = new Map<string, { data: any; timestamp: number }>();
+const cache = new Map<string, CacheEntry>();
 
 // Rate limit configuration
 const RATE_LIMIT_WINDOW = 300_000; // 5 minutes in milliseconds
@@ -41,7 +62,7 @@ function checkRateLimit(ip: string): boolean {
   return false;
 }
 
-function getCachedData(sensorId: string) {
+function getCachedData(sensorId: string): PurpleAirData | null {
   const cachedItem = cache.get(sensorId);
   if (!cachedItem) return null;
 
@@ -55,7 +76,7 @@ function getCachedData(sensorId: string) {
   return null;
 }
 
-function setCachedData(sensorId: string, data: any) {
+function setCachedData(sensorId: string, data: PurpleAirData): void {
   cache.set(sensorId, {
     data,
     timestamp: Date.now(),
@@ -110,7 +131,7 @@ export async function GET(request: Request, { params }: { params: { sensorId: st
       throw new Error('Failed to fetch data');
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as PurpleAirData;
 
     // Cache the new data
     setCachedData(sensorId, data);
