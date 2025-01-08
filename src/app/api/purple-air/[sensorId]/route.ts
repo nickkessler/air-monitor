@@ -100,9 +100,15 @@ function setCachedData(sensorId: string, data: PurpleAirData): void {
   });
 }
 
-export async function GET(request: NextRequest, { params }: { params: { sensorId: string } }) {
+type Props = {
+  params: Promise<{
+    sensorId: string;
+  }>;
+};
+
+export async function GET(request: NextRequest, props: Props): Promise<NextResponse> {
   const ip = request.ip || 'unknown';
-  const { sensorId } = params;
+  const { sensorId } = await props.params;
 
   // Check rate limit
   if (!checkRateLimit(ip)) {
